@@ -1,233 +1,90 @@
-/* global document, google */
+import {map_styles} from './map_styles';
 import {GoogleMapsOverlay} from '@deck.gl/google-maps';
-import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
+import {ScatterplotLayer} from '@deck.gl/layers';
 
-// source: Chicago Data Portal https://data.cityofchicago.org/Transportation/Taxi-Trips/wrvz-psew
-const TAXI_RIDES =
-  'https://data.cityofchicago.org/resource/wrvz-psew.json?$limit=25000';
+/* SET YOU APIR KEY HERE OR IN GoogleMapsAPIKey ENV VAR */
+const YOUR_API_KEY = '';
 
-// Set your Google Maps API key here or via environment variable
-const GOOGLE_MAPS_API_KEY = process.env.GoogleMapsAPIKey; // eslint-disable-line
-const GOOGLE_MAPS_API_URL = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
+/*
+ * Demo of ArcLayer that renders Chicago taxi trips 
+ * between neighborhood centroid origin and destination points
+ *
+ * Datasource: Chicago Data Portal
+ * https://data.cityofchicago.org/Transportation/Taxi-Trips/wrvz-psew
+ */
+function getScatterplotLayers() {
+  const DATA_URI = {
+    trees: 'https://data.cityofnewyork.us/resource/5rq2-4hqu.json',
+    parking_meters: 'https://data.cityofnewyork.us/resource/xx9u-e8wf.json'
+  };
+  const QS = {
+    trees: '?$limit=65000&&boroname=Manhattan',
+    parking_meters: '?$limit=15000'
+  };
+  const SCATTERPLOT_LAYERS = [
+    new ScatterplotLayer({
+      id: 'scatterplot-tree-layer',
+      data: DATA_URI.trees + QS.trees,
+      getPosition: d => d.the_geom.coordinates,
+      getFillColor: d => [51, 255, 60],
+      getLineColor: d => [0, 0, 0],
+      opacity: 0.8,
+      stroked: true,
+      filled: true,
+      radiusScale: 6,
+      radiusMinPixels: 1,
+      radiusMaxPixels: 100,
+      lineWidthMinPixels: 1      
+    }),
+    new ScatterplotLayer({
+      id: 'scatterplot-meter-layer',
+      data: DATA_URI.parking_meters + QS.parking_meters,
+      getPosition: d => d.the_geom.coordinates,
+      getFillColor: d=> [255, 51, 224],
+      getLineColor: d => [0, 0, 0],
+      opacity: 0.8,
+      stroked: true,
+      filled: true,
+      radiusScale: 6,
+      radiusMinPixels: 1,
+      radiusMaxPixels: 100,
+      lineWidthMinPixels: 1,        
+    })
+  ];
 
-function loadScript(url) {
-  const script = document.createElement('script');
-  script.type = 'text/javascript';
-  script.src = url;
-  const head = document.querySelector('head');
-  head.appendChild(script);
+  return SCATTERPLOT_LAYERS;
+}
+
+// Init the base map and deck.gl GoogleMapsOverlay, then add the layer
+async function init() {
+  await loadScript();
+  const MAP = new google.maps.Map(document.getElementById('map'), {
+    center: {lat: 40.760306, lng: -73.982302},
+    zoom: 15,
+    styles: map_styles
+  });
+
+  const SCATTERPLOT_LAYERS = getScatterplotLayers();
+
+  const overlay = new GoogleMapsOverlay({
+    layers: SCATTERPLOT_LAYERS
+  });
+  overlay.setMap(MAP);
+}
+
+// Load the Google Maps Platform JS API async
+function loadScript() {  
+  const GOOGLE_MAPS_API_KEY = YOUR_API_KEY || process.env.GoogleMapsAPIKey,
+        GOOGLE_MAPS_API_URI = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`,
+        HEAD = document.querySelector('head'),
+        SCRIPT = document.createElement('script');
+
+  SCRIPT.type = 'text/javascript';
+  SCRIPT.src = GOOGLE_MAPS_API_URI;
+  HEAD.appendChild(SCRIPT);
   return new Promise(resolve => {
-    script.onload = resolve;
+    SCRIPT.onload = resolve;
   });
 }
 
-loadScript(GOOGLE_MAPS_API_URL).then(() => {
-  const map = new google.maps.Map(document.getElementById('map'), {
-    center: {lat: 41.932875, lng: -87.761911},
-    zoom: 12,
-    styles: [
-      {
-        "featureType": "administrative.land_parcel",
-        "elementType": "labels",
-        "stylers": [
-          {
-            "visibility": "off"
-          }
-        ]
-      },
-      {
-        "featureType": "poi",
-        "elementType": "labels.text",
-        "stylers": [
-          {
-            "visibility": "off"
-          }
-        ]
-      },
-      {
-        "featureType": "road.local",
-        "elementType": "labels",
-        "stylers": [
-          {
-            "visibility": "off"
-          }
-        ]
-      },
-      {
-        "elementType": "geometry",
-        "stylers": [
-          {
-            "color": "#242f3e"
-          }
-        ]
-      },
-      {
-        "elementType": "labels.text.fill",
-        "stylers": [
-          {
-            "color": "#746855"
-          }
-        ]
-      },
-      {
-        "elementType": "labels.text.stroke",
-        "stylers": [
-          {
-            "color": "#242f3e"
-          }
-        ]
-      },
-      {
-        "featureType": "administrative.locality",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          {
-            "color": "#d59563"
-          }
-        ]
-      },
-      {
-        "featureType": "poi",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          {
-            "color": "#d59563"
-          }
-        ]
-      },
-      {
-        "featureType": "poi.park",
-        "elementType": "geometry",
-        "stylers": [
-          {
-            "color": "#263c3f"
-          }
-        ]
-      },
-      {
-        "featureType": "poi.park",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          {
-            "color": "#6b9a76"
-          }
-        ]
-      },
-      {
-        "featureType": "road",
-        "elementType": "geometry",
-        "stylers": [
-          {
-            "color": "#38414e"
-          }
-        ]
-      },
-      {
-        "featureType": "road",
-        "elementType": "geometry.stroke",
-        "stylers": [
-          {
-            "color": "#212a37"
-          }
-        ]
-      },
-      {
-        "featureType": "road",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          {
-            "color": "#9ca5b3"
-          }
-        ]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "geometry",
-        "stylers": [
-          {
-            "color": "#746855"
-          }
-        ]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "geometry.stroke",
-        "stylers": [
-          {
-            "color": "#1f2835"
-          }
-        ]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          {
-            "color": "#f3d19c"
-          }
-        ]
-      },
-      {
-        "featureType": "transit",
-        "elementType": "geometry",
-        "stylers": [
-          {
-            "color": "#2f3948"
-          }
-        ]
-      },
-      {
-        "featureType": "transit.station",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          {
-            "color": "#d59563"
-          }
-        ]
-      },
-      {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [
-          {
-            "color": "#17263c"
-          }
-        ]
-      },
-      {
-        "featureType": "water",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          {
-            "color": "#515c6d"
-          }
-        ]
-      },
-      {
-        "featureType": "water",
-        "elementType": "labels.text.stroke",
-        "stylers": [
-          {
-            "color": "#17263c"
-          }
-        ]
-      }
-    ]
-  });
-
-  const overlay = new GoogleMapsOverlay({
-    layers: [
-      new ArcLayer({
-        id: 'arcs',
-        data: TAXI_RIDES,
-        // dataTransform: d => d.features.filter(f => f.properties.scalerank < 4),
-        getSourcePosition: f => [f.pickup_centroid_longitude, f.pickup_centroid_latitude],
-        getTargetPosition: f => [f.dropoff_centroid_longitude, f.dropoff_centroid_latitude],
-        getSourceColor: [0, 128, 200],
-        getTargetColor: [255, 101, 101],
-        getWidth: 0.5
-      }),
-    ]
-  });
-  overlay.setMap(map);
-});
+init();
